@@ -15,6 +15,7 @@
  */
 
 #include <cassert>
+#include <iostream>
 
 #include "build/Protocol/ServerStats.pb.h"
 #include "build/Tree/Snapshot.pb.h"
@@ -509,6 +510,7 @@ Tree::removeDirectory(const std::string& symbolicPath)
 Result
 Tree::write(const std::string& symbolicPath, const std::string& contents)
 {
+    std::cout << "symbolicPath " << symbolicPath <<   " contents " << contents << std::endl;
     ++numWriteAttempted;
     Path path(symbolicPath);
     if (path.result.status != Status::OK)

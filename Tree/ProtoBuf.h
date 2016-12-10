@@ -14,6 +14,7 @@
  */
 
 #include "build/Protocol/Client.pb.h"
+#include "build/Protocol/Raft.pb.h"
 #include "Tree/Tree.h"
 
 #ifndef LOGCABIN_TREE_PROTOBUF_H
@@ -31,6 +32,15 @@ readOnlyTreeRPC(const Tree& tree,
                 const Protocol::Client::ReadOnlyTree::Request& request,
                 Protocol::Client::ReadOnlyTree::Response& response);
 
+    void readOnlyTreeRPC1(const Tree& tree,
+                          const Protocol::Client::ReadOnlyTree::Request& request,
+                          Protocol::Client::ReadOnlyTree::Response& response);
+
+    std::string readOnlyTreeRPC2(const Tree& tree, const std::string& key);
+//std::string
+//readOnlyTreeRPC(const Tree& tree,
+//                const std::string& key);
+
 /**
  * Respond to a read-write operation on a Tree.
  */
@@ -38,6 +48,8 @@ void
 readWriteTreeRPC(Tree& tree,
                  const Protocol::Client::ReadWriteTree::Request& request,
                  Protocol::Client::ReadWriteTree::Response& response);
+
+        bool getState(const Tree& tree, LogCabin::Protocol::Raft::State& st);
 
 } // namespace LogCabin::Tree::ProtoBuf
 } // namespace LogCabin::Tree

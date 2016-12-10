@@ -20,6 +20,7 @@
 #include <memory>
 #include <thread>
 #include <unordered_map>
+#include <condition_variable>
 
 #include "build/Protocol/Client.pb.h"
 #include "build/Protocol/Raft.pb.h"
@@ -320,6 +321,12 @@ class Peer : public Server {
             google::protobuf::Message& response,
             std::unique_lock<Mutex>& lockGuard);
 
+    Peer::CallStatus
+            callRPC(Protocol::Raft::OpCode opCode,
+                          const google::protobuf::Message& request,
+                          google::protobuf::Message& response,
+                          std::unique_lock<std::mutex>& lockGuard);
+
     /**
      * Launch this Peer's thread, which should run
      * RaftConsensus::peerThreadMain.
@@ -341,6 +348,8 @@ class Peer : public Server {
      */
     std::shared_ptr<RPC::ClientSession>
     getSession(std::unique_lock<Mutex>& lockGuard);
+    std::shared_ptr<RPC::ClientSession>
+            getSession(std::unique_lock<std::mutex>& lockGuard);
 
   public:
 
@@ -656,13 +665,14 @@ class Configuration {
      */
     RaftConsensus& consensus;
 
+  public:
+
     /**
      * A map from server ID to Server of every server, including the local,
      * previous, new, and staging servers.
      */
     std::unordered_map<uint64_t, ServerRef> knownServers;
 
-  public:
     /**
      * This server.
      */
@@ -1083,6 +1093,33 @@ class RaftConsensus {
                            Protocol::Raft::RequestVote::Response& response);
 
     /**
+     * Process a RequestWeight RPC from another server. Called by RaftService.
+     * \param[in] request
+     *      The request that was received from the other server.
+     * \param[out] response
+     *      Where the reply should be placed.
+     */
+    void handleRequestWeight(
+            const Protocol::Raft::RequestWeight::Request& request,
+            Protocol::Raft::RequestWeight::Response& response);
+
+    /**
+     * i: iterator
+     */
+    void getWeights(const std::shared_ptr<Peer>& server, const Protocol::Raft::State& state);
+
+    Protocol::Raft::State requestLatestState();
+
+    std::pair<RaftConsensus::ClientResult, uint64_t>
+            savereplicate(Protocol::Client::ReadWriteTree_Request* request1, const Protocol::Raft::State& state,
+                          const Protocol::Client::StateMachineCommand::Request& tox,
+                          Protocol::Raft::Entry& logEntry);
+
+    Protocol::Raft::State avg();
+
+    Protocol::Raft::State backprop(const Protocol::Raft::State& state);
+
+    /**
      * Submit an operation to the replicated log.
      * \param operation
      *      If the cluster accepts this operation, then it will be added to the
@@ -1093,6 +1130,8 @@ class RaftConsensus {
      *      log.
      */
     std::pair<ClientResult, uint64_t> replicate(const Core::Buffer& operation);
+
+    Protocol::Raft::State avgState(const Protocol::Raft::State& state);
 
     /**
      * Change the cluster's configuration.
@@ -1713,6 +1752,14 @@ class RaftConsensus {
     std::thread stepDownThread;
 
     Invariants invariants;
+
+    mutable std::mutex mutexNN;
+
+    /**
+     * Notified when basically neural network event changes.
+     */
+    mutable std::condition_variable cvNN;
+    std::vector<Protocol::Raft::State> statesNN;
 
     friend class RaftConsensusInternal::LocalServer;
     friend class RaftConsensusInternal::Peer;

@@ -394,7 +394,9 @@ ClientSession::sendRequest(Core::Buffer request)
     // Release the mutex before sending so that receives can be processed
     // simultaneously with sends.
     if (messageSocket)
+    {
         messageSocket->sendMessage(messageId, std::move(request));
+    }
     OpaqueClientRPC rpc;
     rpc.session = self.lock();
     rpc.responseToken = messageId;

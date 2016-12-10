@@ -49,6 +49,9 @@ RaftService::handleRPC(RPC::ServerRPC rpc)
         case OpCode::REQUEST_VOTE:
             requestVote(std::move(rpc));
             break;
+        case OpCode::REQUEST_WEIGHT:
+            requestWeight(std::move(rpc));
+            break;
         default:
             WARNING("Client sent request with bad op code (%u) to RaftService",
                     rpc.getOpCode());
@@ -81,6 +84,7 @@ RaftService::appendEntries(RPC::ServerRPC rpc)
     PRELUDE(AppendEntries);
     //VERBOSE("AppendEntries:\n%s",
     //        Core::ProtoBuf::dumpString(request).c_str());
+    VERBOSE("save weight values");
     globals.raft->handleAppendEntries(request, response);
     rpc.reply(response);
 }
@@ -103,6 +107,72 @@ RaftService::requestVote(RPC::ServerRPC rpc)
     //        Core::ProtoBuf::dumpString(request).c_str());
     globals.raft->handleRequestVote(request, response);
     rpc.reply(response);
+}
+
+void
+RaftService::requestWeight(RPC::ServerRPC rpc)
+{
+    std::cout << "start backprop" << std::endl;
+    PRELUDE(RequestWeight);
+    Protocol::Raft::State st = request.x();
+    Protocol::Raft::State newst = globals.raft->backprop(st);
+    response.set_allocated_y(&newst);
+    rpc.reply(response);
+//    Protocol::Client::StateMachineQuery::Request request;
+//    Protocol::Client::StateMachineQuery::Response response;
+//    if (!rpc.getRequest(request))
+//        return;
+//    using Result = RaftConsensus::ClientResult ;
+//    std::pair<Result, uint64_t> result = globals.raft->getLastCommitIndex();
+//    if (result.first == Result::RETRY || result.first == Result::NOT_LEADER) {
+//        Protocol::Client::Error error;
+//        error.set_error_code(Protocol::Client::Error::NOT_LEADER);
+//        std::string leaderHint = globals.raft->getLeaderHint();
+//        if (!leaderHint.empty())
+//            error.set_leader_hint(leaderHint);
+//        rpc.returnError(error);
+//        return;
+//    }
+//    assert(result.first == Result::SUCCESS);
+//    uint64_t logIndex = result.second;
+//    globals.stateMachine->wait(logIndex);
+//    if (!globals.stateMachine->query(request, response))
+//        rpc.rejectInvalidRequest();
+//    rpc.reply(response);
+
+//    PRELUDE(RequestWeight);
+//    //VERBOSE("RequestVote:\n%s",
+//    //        Core::ProtoBuf::dumpString(request).c_str());
+//    globals.raft->handleRequestWeight(request, response);
+//    rpc.reply(response);
+//}
+//
+//        void
+//        RaftService::requestWeight(RPC::ServerRPC rpc)
+//        {
+//    Protocol::Client::StateMachineQuery::Request request;
+//    Protocol::Client::StateMachineQuery::Response response;
+//    if (!rpc.getRequest(request))
+//        return;
+//            std::pair<Result, uint64_t> result = globals.raft->getLastCommitIndex();
+//            if (result.first == Result::RETRY || result.first == Result::NOT_LEADER) {
+//                Protocol::Client::Error error;
+//                error.set_error_code(Protocol::Client::Error::NOT_LEADER);
+//                std::string leaderHint = globals.raft->getLeaderHint();
+//                if (!leaderHint.empty())
+//                    error.set_leader_hint(leaderHint);
+//                rpc.returnError(error);
+//                return;
+//            }
+//            assert(result.first == Result::SUCCESS);
+//            uint64_t logIndex = result.second;
+//    if (globals.stateMachine)
+//    {
+//        globals.stateMachine->wait(request.prev_log_index());
+//        response.set_value(globals.stateMachine->query2(request.key()));
+//
+//    }
+//    rpc.reply(response);
 }
 
 

@@ -28,6 +28,7 @@ enum OpCode {
     REQUEST_VOTE = 1;
     APPEND_ENTRIES = 2;
     INSTALL_SNAPSHOT = 3;
+    REQUEST_WEIGHT = 4;
 };
 
 /**
@@ -93,13 +94,17 @@ enum EntryType {
      */
     CONFIGURATION = 1;
     /**
-     * Stores a command to be processed by the state machine.
+     * Stores a command to be processed by the state machine. (store weight)
      */
     DATA = 2;
     /**
      * No op.
      */
     NOOP = 3;
+    /**
+     * Stores a command to be processed by the state machine. (calculate weight)
+     */
+    WEIGHT = 4;
 };
 
 /**
@@ -334,5 +339,44 @@ message InstallSnapshot {
          * ignore this field.
          */
         optional uint64 bytes_stored = 2;
+    }
+}
+
+message State {
+
+    message Weights {
+        message WeightsPerLayer {
+            message WeightPerLayerPerNode {
+                repeated double z = 1;
+            }
+            repeated WeightPerLayerPerNode y = 1;
+        }
+
+        repeated WeightsPerLayer x = 1;
+    }
+
+    message Biases {
+        message BiasesPerLayer {
+            repeated double x = 1;
+        }
+        repeated BiasesPerLayer y = 1;
+    }
+
+    required Weights weights = 1;
+    required Biases biases = 2;
+    repeated int32 layers = 3;
+    required int32 iteration = 4;
+}
+
+/**
+ * AppendEntries RPC: replicate log entries to a follower.
+ */
+message RequestWeight {
+    message Request {
+        required State x = 1;
+        required int32 y = 2;
+    }
+    message Response {
+        required State y = 1;
     }
 }
