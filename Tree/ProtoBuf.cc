@@ -54,6 +54,52 @@ readOnlyTreeRPC(const Tree& tree,
         response.set_error(result.error);
 }
 
+    void
+    readOnlyTreeRPC1(const Tree& tree,
+                    const PC::ReadOnlyTree::Request& request,
+                    PC::ReadOnlyTree::Response& response)
+    {
+        Result result;
+        if (request.has_condition()) {
+            result = tree.checkCondition(request.condition().path(),
+                                         request.condition().contents());
+        }
+        if (result.status != Status::OK) {
+            // condition does not match, skip
+        } else if (request.has_read()) {
+            std::string contents;
+            result = tree.read(request.read().path(), contents);
+            //TODO: change contents after running ANN
+            response.mutable_read()->set_contents(contents);
+        } else {
+            PANIC("Unexpected request: %s",
+                  Core::ProtoBuf::dumpString(request).c_str());
+        }
+        response.set_status(static_cast<PC::Status>(result.status));
+        if (result.status != Status::OK)
+            response.set_error(result.error);
+    }
+
+    std::string
+    readOnlyTreeRPC2(const Tree& tree, const std::string& key)
+    {
+        std::string contents;
+        Result result = tree.read(key, contents);
+        //TODO: change contents after running ANN
+        return contents;
+    }
+
+//    std::string
+//    readOnlyTreeRPC(const Tree& tree,
+//                    const std::string& key)
+//    {
+//        Result result;
+//        std::vector<std::string> children;
+//        std::string contents;
+//        result = tree.read(key, contents);
+//        return contents;
+//    }
+
 void
 readWriteTreeRPC(Tree& tree,
                  const PC::ReadWriteTree::Request& request,

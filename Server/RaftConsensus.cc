@@ -23,6 +23,8 @@
 #include <sys/stat.h>
 #include <time.h>
 #include <unistd.h>
+#include <chrono>
+#include <iostream>
 
 #include "build/Protocol/Raft.pb.h"
 #include "build/Server/SnapshotMetadata.pb.h"
@@ -1110,6 +1112,8 @@ RaftConsensus::init()
         }
         stepDownThread = std::thread(
             &RaftConsensus::stepDownThreadMain, this);
+//        neuralNetworkThread = std::thread(
+//            &RaftConsensus::neuralNetworkThreadMain, this);
     }
     // log->path = ""; // hack to disable disk
     stateChanged.notify_all();
@@ -1257,6 +1261,18 @@ RaftConsensus::getSnapshotStats() const
     s.set_log_bytes(log->getSizeBytes());
     s.set_is_leader(state == State::LEADER);
     return s;
+}
+
+void print(const std::string& s){
+    {
+//        std::lock_guard<Mutex> lockGuard(mutex);
+        std::cout << s << std::endl;
+    }
+//            std::cout << s <<
+//            std::chrono::duration_cast<std::chrono::microseconds>(
+//                    std::chrono::steady_clock::now().time_since_epoch())
+//                    .count()
+//            << std::endl;
 }
 
 void
@@ -1581,14 +1597,315 @@ RaftConsensus::handleRequestVote(
     response.set_log_ok(logIsOk);
 }
 
+//void
+//RaftConsensus::handleRequestWeight(
+//        const Protocol::Raft::RequestWeight::Request& request,
+//        Protocol::Raft::RequestWeight::Response& response)
+//{
+//    std::lock_guard<Mutex> lockGuard(mutex);
+//    assert(!exiting);
+//
+//    // Set response to a rejection. We'll overwrite these later if we end up
+//    // accepting the request.
+//    response.set_term(currentTerm);
+//    response.set_success(false);
+//    response.set_last_log_index(log->getLastLogIndex());
+//
+//    // Piggy-back server capabilities.
+//    {
+//        auto& cap = *response.mutable_server_capabilities();
+//        auto& s = *configuration->localServer;
+//        if (s.haveStateMachineSupportedVersions) {
+//            cap.set_min_supported_state_machine_version(
+//                    s.minStateMachineVersion);
+//            cap.set_max_supported_state_machine_version(
+//                    s.maxStateMachineVersion);
+//        }
+//    }
+//
+//    // If the caller's term is stale, just return our term to it.
+//    if (request.term() < currentTerm) {
+//        VERBOSE("Caller(%lu) is stale. Our term is %lu, theirs is %lu",
+//                 request.server_id(), currentTerm, request.term());
+//        return; // response was set to a rejection above
+//    }
+//    if (request.term() > currentTerm) {
+//        NOTICE("Received AppendEntries request from server %lu in term %lu "
+//               "(this server's term was %lu)",
+//                request.server_id(), request.term(), currentTerm);
+//        // We're about to bump our term in the stepDown below: update
+//        // 'response' accordingly.
+//        response.set_term(request.term());
+//    }
+//    // This request is a sign of life from the current leader. Update
+//    // our term and convert to follower if necessary; reset the
+//    // election timer. set it here in case request we exit the
+//    // function early, we will set it again after the disk write.
+//    stepDown(request.term());
+//    setElectionTimer();
+//    withholdVotesUntil = Clock::now() + ELECTION_TIMEOUT;
+//
+//    // Record the leader ID as a hint for clients.
+//    if (leaderId == 0) {
+//        leaderId = request.server_id();
+//        NOTICE("All hail leader %lu for term %lu", leaderId, currentTerm);
+//        printElectionState();
+//    } else {
+//        assert(leaderId == request.server_id());
+//    }
+//
+//    // For an entry to fit into our log, it must not leave a gap.
+//    if (request.prev_log_index() > log->getLastLogIndex()) {
+//        VERBOSE("Rejecting AppendEntries RPC: would leave gap");
+//        return; // response was set to a rejection above
+//    }
+//    // It must also agree with the previous entry in the log (and, inductively
+//    // all prior entries).
+//    // Always match on index 0, and always match on any discarded indexes:
+//    // since we know those were committed, the leader must agree with them.
+//    // We could truncate the log here, but there's no real advantage to doing
+//    // that.
+//    if (request.prev_log_index() >= log->getLogStartIndex() &&
+//        log->getEntry(request.prev_log_index()).term() !=
+//            request.prev_log_term()) {
+//        VERBOSE("Rejecting AppendEntries RPC: terms don't agree");
+//        return; // response was set to a rejection above
+//    }
+//
+//    // If we got this far, we're accepting the request.
+//    response.set_success(true);
+//
+//    // This needs to be able to handle duplicated RPC requests. We compare the
+//    // entries' terms to know if we need to do the operation; otherwise,
+//    // reapplying requests can result in data loss.
+//    //
+//    // The first problem this solves is that an old AppendEntries request may be
+//    // duplicated and received after a newer request, which could cause
+//    // undesirable data loss. For example, suppose the leader appends entry 4
+//    // and then entry 5, but the follower receives 4, then 5, then 4 again.
+//    // Without this extra guard, the follower would truncate 5 out of its
+//    // log.
+//    //
+//    // The second problem is more subtle: if the same request is duplicated but
+//    // the leader processes an earlier response, it will assume the
+//    // acknowledged data is safe. However, there is a window of vulnerability
+//    // on the follower's disk between the truncate and append operations (which
+//    // are not done atomically) when the follower processes the later request.
+//    uint64_t index = request.prev_log_index();
+//    for (auto it = request.entries().begin();
+//         it != request.entries().end();
+//         ++it) {
+//        ++index;
+//        const Protocol::Raft::Entry& entry = *it;
+//        if (entry.has_index()) {
+//            // This precaution was added after #160: "Packing entries into
+//            // AppendEntries requests is broken (critical)".
+//            assert(entry.index() == index);
+//        }
+//        if (index < log->getLogStartIndex()) {
+//            // We already snapshotted and discarded this index, so presumably
+//            // we've received a committed entry we once already had.
+//            continue;
+//        }
+//        if (log->getLastLogIndex() >= index) {
+//            if (log->getEntry(index).term() == entry.term())
+//                continue;
+//            // should never truncate committed entries:
+//            assert(commitIndex < index);
+//            uint64_t lastIndexKept = index - 1;
+//            uint64_t numTruncating = log->getLastLogIndex() - lastIndexKept;
+//            NOTICE("Truncating %lu entries after %lu from the log",
+//                   numTruncating,
+//                   lastIndexKept);
+//            numEntriesTruncated += numTruncating;
+//            log->truncateSuffix(lastIndexKept);
+//            configurationManager->truncateSuffix(lastIndexKept);
+//        }
+//
+//        // Append this and all following entries.
+//        std::vector<const Protocol::Raft::Entry*> entries;
+//        do {
+//            const Protocol::Raft::Entry& entry = *it;
+//            if (entry.type() == Protocol::Raft::EntryType::UNKNOWN) {
+//                PANIC("Leader %lu is trying to send us an unknown log entry "
+//                      "type for index %lu (term %lu). It shouldn't do that, "
+//                      "and there's not a good way forward. There's some hope "
+//                      "that if this server reboots, it'll come back up with a "
+//                      "newer version of the code that understands the entry.",
+//                      index,
+//                      entry.term(),
+//                      leaderId);
+//            }
+//            entries.push_back(&entry);
+//            ++it;
+//            ++index;
+//        } while (it != request.entries().end());
+//        append(entries);
+//        //TODO: run state machine here and change response
+//        clusterClock.newEpoch(entries.back()->cluster_time());
+//        break;
+//    }
+//    response.set_last_log_index(log->getLastLogIndex());
+//
+//    // Set our committed ID from the request's. In rare cases, this would make
+//    // our committed ID decrease. For example, this could happen with a new
+//    // leader who has not yet replicated one of its own entries. While that'd
+//    // be perfectly safe, guarding against it with an if statement lets us
+//    // make stronger assertions.
+//    if (commitIndex < request.commit_index()) {
+//        commitIndex = request.commit_index();
+//        assert(commitIndex <= log->getLastLogIndex());
+//        stateChanged.notify_all();
+//        VERBOSE("New commitIndex: %lu", commitIndex);
+//    }
+//
+//    // reset election timer to avoid punishing the leader for our own
+//    // long disk writes
+//    setElectionTimer();
+//    withholdVotesUntil = Clock::now() + ELECTION_TIMEOUT;
+//}
+        std::string RaftConsensus::getWeights(int i)
+        {
+
+//            // Build up request
+//            Protocol::Raft::AppendEntries::Request request;
+//            request.set_server_id(serverId);
+//            request.set_term(currentTerm);
+//            request.set_prev_log_term(prevLogTerm);
+//            request.set_prev_log_index(prevLogIndex);
+//            uint64_t numEntries = 0;
+//            if (!peer.suppressBulkData)
+//                numEntries = packEntries(peer.nextIndex, request);
+//            request.set_commit_index(std::min(commitIndex, prevLogIndex + numEntries));
+//
+//            // Execute RPC
+//            Protocol::Raft::AppendEntries::Response response;
+//            TimePoint start = Clock::now();
+//            uint64_t epoch = currentEpoch;
+//            Peer::CallStatus status = peer.callRPC(
+//                    Protocol::Raft::OpCode::APPEND_ENTRIES,
+//                    request, response,
+//                    lockGuard);
+//
+//            //create RPC for all servers and send it
+//            LeaderRPC::Status status;
+//            Protocol::Client::StateMachineQuery::Request qrequest;
+//            Protocol::Client::StateMachineQuery::Response qresponse;
+//            *qrequest.mutable_tree() = request;
+//            status = leaderRPC.call(Protocol::Client::OpCode::STATE_MACHINE_QUERY,
+//                                    qrequest, qresponse, timeout);
+//
+//            //get weights
+////            std::string weights = globals.stateMachine->query(std::to_string(i));
+//            //send request and update these weights
+////            return weights;
+        }
+
+Protocol::Raft::State initialize(std::vector<int> layers)
+{
+    using State = Protocol::Raft::State;
+    State state;
+
+    std::random_device rd;
+    std::mt19937 e2(rd());
+    std::normal_distribution<> dist(0, 1);
+
+    for(unsigned int i = 0; i < layers.size(); i++)
+    {
+        state.add_layers(layers[i]);
+        if(i > 0)
+        {
+            auto biastemp = state.mutable_biases()->add_y();
+            auto weighttempx = state.mutable_weights()->add_x();
+            for(unsigned int j = 0; j < layers[i]; j++)
+            {
+                biastemp->add_x(dist(e2));
+                auto weighttempy = weighttempx->add_y();
+                for(unsigned int k = 0; k < layers[i-1]; k++)
+                {
+                    weighttempy->add_z(dist(e2));
+                }
+            }
+        }
+    }
+
+//    print("size of biases is:y" +std::to_string(state.biases().y_size()));
+//    for(unsigned int i = 0; i < layers.size()-1; i++)
+//        print("size of biases is:x"+std::to_string(state.biases().y(i).x_size()));
+//
+//    print("size of wt is:x" +std::to_string(state.weights().x_size()));
+//    for(unsigned int i = 0; i < layers.size()-1; i++)
+//    {
+//        print("size of wt is:y" + std::to_string(state.weights().x(i).y_size()));
+//        for(unsigned int j = 0; j < layers[i+1]; j++){
+//            print("size of wt is:z" + std::to_string(state.weights().x(i).y(j).z_size()));
+//        }
+//    }
+    return state;
+}
+
+
 std::pair<RaftConsensus::ClientResult, uint64_t>
 RaftConsensus::replicate(const Core::Buffer& operation)
 {
     std::unique_lock<Mutex> lockGuard(mutex);
-    Log::Entry entry;
-    entry.set_type(Protocol::Raft::EntryType::DATA);
-    entry.set_data(operation.getData(), operation.getLength());
-    return replicateEntry(entry, lockGuard);
+
+    Log::Entry logEntry;
+    logEntry.set_type(Protocol::Raft::EntryType::DATA);
+    logEntry.set_data(operation.getData(), operation.getLength());
+
+    Protocol::Client::StateMachineCommand::Request tox;
+    tox.ParseFromArray(
+            static_cast<const char*>(operation.getData()) + 0,
+            Core::Util::downCast<int>(operation.getLength() - 0));
+
+    Protocol::Client::ReadWriteTree_Request* request1 = tox.mutable_tree();
+
+//    print("_"+request1->write().contents()+"--" );
+//    print("_"+request1->write().path()+"--" );
+
+//    if(request1->write().path() != "")
+//    {
+//        request1->mutable_write()->set_path("/newworld");
+//        request1->mutable_write()->set_contents("newContents");
+//
+//        Core::Buffer to;
+//        uint32_t length = uint32_t(tox.ByteSize());
+//        char *data = new char[0 + length];
+//        tox.SerializeToArray(data + 0, int(length));
+//        to.setData(data, 0 + length, Core::Buffer::deleteArrayFn<char>);
+//        logEntry.set_data(to.getData(), to.getLength());
+//    }
+
+//    return replicateEntry(logEntry, lockGuard);
+    std::pair<ClientResult, uint64_t >res;
+
+    if(request1->write().path() != "")
+    for(unsigned int i = 0; i < 1; i++)
+    {
+        //initialize
+        auto state = initialize({2,3,1});
+        //convert this to stream and store this for ith iteration
+        request1->mutable_write()->set_path("/" + std::to_string(i));
+        request1->mutable_write()->set_contents(state.SerializeAsString());
+
+        Core::Buffer to;
+        uint32_t length = uint32_t(tox.ByteSize());
+        char *data = new char[0 + length];
+        tox.SerializeToArray(data + 0, int(length));
+        to.setData(data, 0 + length, Core::Buffer::deleteArrayFn<char>);
+        logEntry.set_data(to.getData(), to.getLength());
+
+        //store weights
+        {
+            std::unique_lock<Mutex> lockGuard(mutex);
+            res = replicateEntry(logEntry, lockGuard);
+        }
+
+        //now ask all servers to compute backprop and take avg of first majority of them
+
+    }
+    return res;
 }
 
 RaftConsensus::ClientResult
@@ -2102,6 +2419,11 @@ RaftConsensus::peerThreadMain(std::shared_ptr<Peer> peer)
                         peer->nextHeartbeatTime < now) {
                         // appendEntries delegates to installSnapshot if we
                         // need to send a snapshot instead
+//                        std::cout << "leader asked peer to replicate : two times " << std::this_thread::get_id() << std::endl;
+//                        std::chrono::duration_cast<std::chrono::microseconds>(
+//                                std::chrono::steady_clock::now().time_since_epoch())
+//                                .count()
+//                        << std::endl;
                         appendEntries(lockGuard, *peer);
                     } else {
                         waitUntil = peer->nextHeartbeatTime;
@@ -2167,6 +2489,40 @@ RaftConsensus::stepDownThreadMain()
         }
     }
 }
+
+//        void RaftConsensus::neuralNetworkThreadMain()
+//        {
+//            Core::ThreadId::setName("neuralNetwork");
+//
+////            while (!exiting) {
+////                if (state == State::LEADER && compute) {
+////                    uint64_t term = currentTerm;
+////                    std::unique_ptr<Log::Sync> sync = log->takeSync();
+////                    logSyncQueued = false;
+////                    leaderDiskThreadWorking = true;
+////                    {
+////                        Core::MutexUnlock<Mutex> unlockGuard(lockGuard);
+////                        sync->wait();
+////                        // Mark this false before re-acquiring RaftConsensus lock,
+////                        // since stepDown() polls on this to go false while holding the
+////                        // lock.
+////                        leaderDiskThreadWorking = false;
+////                    }
+////                    if (state == State::LEADER && currentTerm == term) {
+////                        configuration->localServer->lastSyncedIndex = sync->lastIndex;
+////                        advanceCommitIndex();
+////                    }
+////                    log->syncComplete(std::move(sync));
+////                    continue;
+////                }
+////                stateChanged.wait(lockGuard);
+////            }
+//        }
+
+//        void RaftConsensus::neuralNetwork()
+//        {
+//
+//        }
 
 //// RaftConsensus private methods that MUST NOT acquire the lock
 
@@ -2742,10 +3098,12 @@ std::pair<RaftConsensus::ClientResult, uint64_t>
 RaftConsensus::replicateEntry(Log::Entry& entry,
                               std::unique_lock<Mutex>& lockGuard)
 {
+
     if (state == State::LEADER) {
         entry.set_term(currentTerm);
         entry.set_cluster_time(clusterClock.leaderStamp());
         append({&entry});
+
         uint64_t index = log->getLastLogIndex();
         while (!exiting && currentTerm == entry.term()) {
             if (commitIndex >= index) {

@@ -173,6 +173,7 @@ treeCall(LeaderRPCBase& leaderRPC,
     Protocol::Client::StateMachineCommand::Request crequest;
     Protocol::Client::StateMachineCommand::Response cresponse;
     *crequest.mutable_tree() = request;
+//    std::cout << "sqq111qending data " << crequest.tree().write().path() << " contents " << crequest.tree().write().contents() << std::endl;
     LeaderRPC::Status status;
     if (request.exactly_once().client_id() == 0) {
         VERBOSE("Already timed out on establishing session for read-write "
@@ -775,6 +776,7 @@ ClientImpl::write(const std::string& path,
     request.mutable_write()->set_path(realPath);
     request.mutable_write()->set_contents(contents);
     Protocol::Client::ReadWriteTree::Response response;
+//    std::cout << "sending data " << request.write().path() << " contents " << request.write().contents() << std::endl;
     treeCall(*leaderRPC,
              request, response, timeout);
     exactlyOnceRPCHelper.doneWithRPC(request.exactly_once());

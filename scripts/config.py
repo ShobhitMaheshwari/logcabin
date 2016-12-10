@@ -75,7 +75,12 @@ for i in range(1, 61):
                   i))
 
 # The set of hosts available for basic correctness testing.
-smokehosts = hosts
+#smokehosts = hosts
+smokehosts = hosts = [
+    ('192.168.2.1', '192.168.2.1', 1),
+    ('192.168.2.2', '192.168.2.2', 2),
+    ('192.168.2.3', '192.168.2.3', 3),
+]
 
 # Full path to the directory containing RAMCloud executables.
 obj_path = '%s/%s' % (top_path, obj_dir)

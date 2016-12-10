@@ -31,6 +31,15 @@ readOnlyTreeRPC(const Tree& tree,
                 const Protocol::Client::ReadOnlyTree::Request& request,
                 Protocol::Client::ReadOnlyTree::Response& response);
 
+    void readOnlyTreeRPC1(const Tree& tree,
+                          const Protocol::Client::ReadOnlyTree::Request& request,
+                          Protocol::Client::ReadOnlyTree::Response& response);
+
+    std::string readOnlyTreeRPC2(const Tree& tree, const std::string& key);
+//std::string
+//readOnlyTreeRPC(const Tree& tree,
+//                const std::string& key);
+
 /**
  * Respond to a read-write operation on a Tree.
  */

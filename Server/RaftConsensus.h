@@ -1083,6 +1083,22 @@ class RaftConsensus {
                            Protocol::Raft::RequestVote::Response& response);
 
     /**
+     * Process a RequestWeight RPC from another server. Called by RaftService.
+     * \param[in] request
+     *      The request that was received from the other server.
+     * \param[out] response
+     *      Where the reply should be placed.
+     */
+    void handleRequestWeight(
+            const Protocol::Raft::RequestWeight::Request& request,
+            Protocol::Raft::RequestWeight::Response& response);
+
+    /**
+     * i: iterator
+     */
+    std::string getWeights(int i);
+
+    /**
      * Submit an operation to the replicated log.
      * \param operation
      *      If the cluster accepts this operation, then it will be added to the
@@ -1233,7 +1249,19 @@ class RaftConsensus {
     void stepDownThreadMain();
 
 
+
+
     //// The following private methods MUST NOT acquire the lock.
+
+    /**
+     * run neural network
+     */
+//    void neuralNetworkThreadMain();
+
+    /**
+     * run neural network
+     */
+//    void neuralNetwork();
 
 
     /**
@@ -1712,11 +1740,26 @@ class RaftConsensus {
      */
     std::thread stepDownThread;
 
+    /**
+     * This will handle requests to compute weights
+     */
+//    std::thread neuralNetworkThread;
+
+    mutable Mutex mutexNN;
+
+    /**
+     * Notified when basically neural network event changes.
+     */
+    mutable Core::ConditionVariable stateChangedNN;
+
     Invariants invariants;
 
     friend class RaftConsensusInternal::LocalServer;
     friend class RaftConsensusInternal::Peer;
     friend class RaftConsensusInternal::Invariants;
+
+//private:
+//    void print(const std::string& s);
 };
 
 } // namespace LogCabin::Server

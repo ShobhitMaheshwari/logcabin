@@ -20,6 +20,7 @@
 #include "Server/RaftConsensus.h"
 #include "Server/RaftService.h"
 #include "Server/Globals.h"
+#include "Server/StateMachine.h"
 
 namespace LogCabin {
 namespace Server {
@@ -48,6 +49,9 @@ RaftService::handleRPC(RPC::ServerRPC rpc)
             break;
         case OpCode::REQUEST_VOTE:
             requestVote(std::move(rpc));
+            break;
+        case OpCode::REQUEST_WEIGHT:
+            requestWeight(std::move(rpc));
             break;
         default:
             WARNING("Client sent request with bad op code (%u) to RaftService",
@@ -102,6 +106,44 @@ RaftService::requestVote(RPC::ServerRPC rpc)
     //VERBOSE("RequestVote:\n%s",
     //        Core::ProtoBuf::dumpString(request).c_str());
     globals.raft->handleRequestVote(request, response);
+    rpc.reply(response);
+}
+
+void
+RaftService::requestWeight(RPC::ServerRPC rpc)
+{
+    PRELUDE(RequestWeight);
+//    //VERBOSE("RequestVote:\n%s",
+//    //        Core::ProtoBuf::dumpString(request).c_str());
+//    globals.raft->handleRequestWeight(request, response);
+//    rpc.reply(response);
+//}
+//
+//        void
+//        RaftService::requestWeight(RPC::ServerRPC rpc)
+//        {
+//    Protocol::Client::StateMachineQuery::Request request;
+//    Protocol::Client::StateMachineQuery::Response response;
+//    if (!rpc.getRequest(request))
+//        return;
+//            std::pair<Result, uint64_t> result = globals.raft->getLastCommitIndex();
+//            if (result.first == Result::RETRY || result.first == Result::NOT_LEADER) {
+//                Protocol::Client::Error error;
+//                error.set_error_code(Protocol::Client::Error::NOT_LEADER);
+//                std::string leaderHint = globals.raft->getLeaderHint();
+//                if (!leaderHint.empty())
+//                    error.set_leader_hint(leaderHint);
+//                rpc.returnError(error);
+//                return;
+//            }
+//            assert(result.first == Result::SUCCESS);
+//            uint64_t logIndex = result.second;
+    if (globals.stateMachine)
+    {
+        globals.stateMachine->wait(request.prev_log_index());
+        response.set_value(globals.stateMachine->query2(request.key()));
+
+    }
     rpc.reply(response);
 }
 

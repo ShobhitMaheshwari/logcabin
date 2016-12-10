@@ -132,6 +132,35 @@ StateMachine::query(const Query::Request& request,
     return false;
 }
 
+        bool
+        StateMachine::query1(const Query::Request& request,
+                            Query::Response& response) const
+        {
+            std::lock_guard<Core::Mutex> lockGuard(mutex);
+            if (request.has_tree()) {
+                Tree::ProtoBuf::readOnlyTreeRPC1(tree,
+                                                request.tree(),
+                                                *response.mutable_tree());
+                return true;
+            }
+            warnUnknownRequest(request, "does not understand the given request");
+            return false;
+        }
+
+        std::string
+        StateMachine::query2(const std::string& key) const
+        {
+            std::lock_guard<Core::Mutex> lockGuard(mutex);
+
+            return Tree::ProtoBuf::readOnlyTreeRPC2(tree, key);
+
+        }
+
+//        std::string StateMachine::query(std::string key) const
+//        {
+//            return Tree::ProtoBuf::readOnlyTreeRPC(tree, key);
+//        }
+
 void
 StateMachine::updateServerStats(Protocol::ServerStats& serverStats) const
 {
