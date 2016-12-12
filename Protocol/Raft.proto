@@ -374,7 +374,6 @@ message State {
 message RequestWeight {
     message Request {
         required State x = 1;
-        required int32 y = 2;
     }
     message Response {
         required State y = 1;

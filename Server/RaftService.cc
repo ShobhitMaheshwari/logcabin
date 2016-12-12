@@ -112,11 +112,14 @@ RaftService::requestVote(RPC::ServerRPC rpc)
 void
 RaftService::requestWeight(RPC::ServerRPC rpc)
 {
-    std::cout << "start backprop" << std::endl;
+    GOOGLE_PROTOBUF_VERIFY_VERSION;
+    std::cout << "start backprop in follower" << std::endl;
     PRELUDE(RequestWeight);
-    Protocol::Raft::State st = request.x();
-    Protocol::Raft::State newst = globals.raft->backprop(st);
+//    Protocol::Raft::State st = request.x();
+    Protocol::Raft::State newst = globals.raft->backprop(request.x());
+    std::cout << "about to end backprop in follower" << std::endl;
     response.set_allocated_y(&newst);
+    std::cout << "before returning in follower" << std::endl;
     rpc.reply(response);
 //    Protocol::Client::StateMachineQuery::Request request;
 //    Protocol::Client::StateMachineQuery::Response response;

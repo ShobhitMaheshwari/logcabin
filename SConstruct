@@ -107,6 +107,7 @@ if (env['CXX_FAMILY'] == 'gcc' and
 if env['CXX_FAMILY'] == 'gcc':
     env.Prepend(CXXFLAGS = [
         "-Wall",
+        "-g",
         "-Wextra",
         "-Wcast-align",
         "-Wcast-qual",

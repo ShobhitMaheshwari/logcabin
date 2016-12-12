@@ -47,6 +47,19 @@
 namespace LogCabin {
 namespace Server {
 
+    std::mutex glm;
+    void print(const std::string& s)
+    {
+        std::lock_guard<std::mutex> l(glm);
+        std::cout << s <<" "<< std::this_thread::get_id() << std::endl;
+    }
+
+    void print(const std::string& s, uint64_t x)
+    {
+        std::lock_guard<std::mutex> l(glm);
+        std::cout << std::to_string(x) << " " << s <<" "<< std::this_thread::get_id() << std::endl;
+    }
+
 typedef Storage::Log Log;
 
 namespace RaftConsensusInternal {
@@ -191,6 +204,8 @@ Peer::Peer(uint64_t serverId, RaftConsensus& consensus)
     , session()
     , rpc()
 {
+    print("creating a peer");
+    print("peer consnsus is:" + std::to_string(consensus.serverId) + "_");
 }
 
 Peer::~Peer()
@@ -319,11 +334,14 @@ Peer::callRPC(Protocol::Raft::OpCode opCode,
                       std::unique_lock<std::mutex>& lockGuard)
         {
             typedef RPC::ClientRPC::Status RPCStatus;
+//            print("getting rpc object", serverId);
+//            print("id is: "+std::to_string(consensus.serverId) + "_", serverId);
             rpc = RPC::ClientRPC(getSession(lockGuard),
                                  Protocol::Common::ServiceId::RAFT_SERVICE,
                     /* serviceSpecificErrorVersion = */ 0,
                                  opCode,
                                  request);
+//            print("got rpc object", serverId);
             // release lock for concurrency
             Core::MutexUnlock<std::mutex> unlockGuard(lockGuard);
             switch (rpc.waitForReply(&response, NULL, TimePoint::max())) {
@@ -395,23 +413,30 @@ Peer::getSession(std::unique_lock<Mutex>& lockGuard)
         std::shared_ptr<RPC::ClientSession>
         Peer::getSession(std::unique_lock<std::mutex>& lockGuard)
         {
-            if (!session || !session->getErrorMessage().empty()) {
+//            print("getting session", serverId);
+//            if (!session || !session->getErrorMessage().empty()) {
+
                 // Unfortunately, creating a session isn't currently interruptible, so
                 // we use a timeout to prevent the server from hanging forever if some
                 // peer thread happens to be creating a session when it's told to exit.
                 // See https://github.com/logcabin/logcabin/issues/183 for more detail.
                 TimePoint timeout = Clock::now() + consensus.ELECTION_TIMEOUT;
+
                 // release lock for concurrency
                 Core::MutexUnlock<std::mutex> unlockGuard(lockGuard);
+
                 RPC::Address target(addresses, Protocol::Common::DEFAULT_PORT);
+
                 target.refresh(timeout);
+
                 Client::SessionManager::ServerId peerId(serverId);
+
                 session = consensus.sessionManager.createSession(
                         target,
                         timeout,
                         &consensus.globals.clusterUUID,
                         &peerId);
-            }
+//                print("got session", serverId);
             return session;
         }
 
@@ -1335,18 +1360,6 @@ RaftConsensus::getSnapshotStats() const
     return s;
 }
 
-void print(const std::string& s){
-    {
-//        std::lock_guard<Mutex> lockGuard(mutex);
-        std::cout << s << std::endl;
-    }
-//            std::cout << s <<
-//            std::chrono::duration_cast<std::chrono::microseconds>(
-//                    std::chrono::steady_clock::now().time_since_epoch())
-//                    .count()
-//            << std::endl;
-}
-
 void
 RaftConsensus::handleAppendEntries(
                     const Protocol::Raft::AppendEntries::Request& request,
@@ -1838,9 +1851,12 @@ RaftConsensus::handleRequestVote(
 //    withholdVotesUntil = Clock::now() + ELECTION_TIMEOUT;
 //}
          */
+
         void RaftConsensus::getWeights(const std::shared_ptr<Peer>& peer, const Protocol::Raft::State& state)
         {
-            Protocol::Raft::State statecpy = state;
+//            std::this_thread::sleep_for(std::chrono::milliseconds(5000));
+            Protocol::Raft::State statecpy;
+            statecpy.ParseFromString(state.SerializeAsString());
             Protocol::Raft::RequestWeight::Request request;
             request.set_allocated_x(&statecpy);
 
@@ -1848,22 +1864,26 @@ RaftConsensus::handleRequestVote(
             Protocol::Raft::RequestWeight::Response response;
             Peer::CallStatus status;
 
+//            print("making rpc callA", peer->serverId);
+//            print("making rpc callB" + std::to_string(peer->serverId) + " ");
             {
                 std::unique_lock<std::mutex> locker(mutexNN);
                 status = peer->callRPC(
                         Protocol::Raft::OpCode::REQUEST_WEIGHT,
                         request, response,
                         locker);
-                Protocol::Raft::State newState = response.y();
+                print("rpc call done: " + std::to_string(response.y().iteration()), peer->serverId);
+//                Protocol::Raft::State newState = response.y();
                 //TODO either increment here or there
 //                newState.set_iteration(state.iteration() + 1);
-                statesNN.push_back(newState);
+                statesNN.push_back(response.y());
             }
             switch (status) {
                 case Peer::CallStatus::OK:
+//                    print("rpc call ok", peer->serverId);
                     break;
                 case Peer::CallStatus::FAILED:
-                    WARNING("rpc call failed");
+                    print("rpc call failed", peer->serverId);
                     break;
                 case Peer::CallStatus::INVALID_REQUEST:
                     PANIC("The server's RaftService doesn't support the AppendEntries "
@@ -1928,7 +1948,7 @@ RaftConsensus::handleRequestVote(
              */
         }
 
-Protocol::Raft::State initialize(std::vector<int> layers)
+Protocol::Raft::State initialize(const std::vector<int>& layers)
 {
     using State = Protocol::Raft::State;
     State state;
@@ -2020,20 +2040,44 @@ Protocol::Raft::State initialize(std::vector<int> layers)
         {
             //TODO: change
             print("averaging among majority");
+            assert(statesNN.size() > 0);
             return statesNN[0];
         }
 
         Protocol::Raft::State RaftConsensus::backprop(const Protocol::Raft::State& state)
         {
             print("running backprop");
-            auto x = state;
+            Protocol::Raft::State x;
+            x.ParseFromString(state.SerializeAsString());
+//            auto x = state;
             x.set_iteration(x.iteration() + 1);
+            print("backprop doneA");
             return x;
         }
+
+        void RaftConsensus::dobackprop(const Protocol::Raft::State& state)
+        {
+            auto x = backprop(state);
+            {
+                std::unique_lock<std::mutex> locker(mutexNN);
+                statesNN.push_back(x);
+            }
+            cvNN.notify_all();
+            print("backprop doneB", 1000);
+        }
+
 
 std::pair<RaftConsensus::ClientResult, uint64_t>
 RaftConsensus::replicate(const Core::Buffer& operation)
 {
+    GOOGLE_PROTOBUF_VERIFY_VERSION;
+    {
+        std::unique_lock<Mutex> lockGuard(mutex);
+        if (state != State::LEADER)
+            return {ClientResult::NOT_LEADER, 0};
+    }
+
+    print("replicating_");
     Log::Entry logEntry;
     logEntry.set_type(Protocol::Raft::EntryType::DATA);
     logEntry.set_data(operation.getData(), operation.getLength());
@@ -2070,13 +2114,21 @@ RaftConsensus::replicate(const Core::Buffer& operation)
     if(request1->write().path() != "")//for some reason this thread is called 3 times with only one time
         // having correct value (in case of three replicas)
     {
+        print("in the loop");
         //initialize
         auto state = initialize({2,3,1});
         for (unsigned int i = 0; i < 1; i++)
         {
             res = savereplicate(request1, state, tox, logEntry);
             //now ask all servers to compute backprop and take avg of first majority of them
+            print("updated state: " + std::to_string(state.iteration()));
             state = avgState(state);
+            print("avged state");
+        }
+    } else {
+        {
+            std::unique_lock<Mutex> lockGuard(mutex);
+            res = replicateEntry(logEntry, lockGuard);
         }
     }
     return res;
@@ -2085,29 +2137,60 @@ RaftConsensus::replicate(const Core::Buffer& operation)
         Protocol::Raft::State RaftConsensus::avgState(const Protocol::Raft::State& state)
         {
             statesNN.clear();
-            for(auto const& i: configuration->knownServers)
-            {
-                auto tmp = std::shared_ptr<Peer>(new Peer(i.first, *this));
-                std::thread(&RaftConsensus::getWeights,
-                            this, std::cref(tmp), std::cref(state)).detach();
-            }
-            std::thread(&RaftConsensus::backprop, this, std::cref(state)).detach();
+            print("configuration->knownServers" + std::to_string(configuration->knownServers.size()) + "_");
+
+            //cannot understand why this ain't working
+//            for(auto const& i: configuration->knownServers)
+//            {
+////                if(i.first != this->serverId)
+//                if(i.first == 3)
+//                {
+////                    std::shared_ptr<Peer> xx =  std::static_pointer_cast<Peer>(i.second);
+////                    print("starting thread " +  std::to_string(xx->serverId));
+////                    std::thread(&RaftConsensus::getWeights,
+////                                this, std::cref(xx), std::cref(state)).detach();
+//                }
+//                else if(i.first == 2)
+//                {
+////                    std::shared_ptr<Peer> xxy =  std::static_pointer_cast<Peer>(i.second);
+////                    print("starting thread " +  std::to_string(xxy->serverId));
+////                    std::thread(&RaftConsensus::getWeights,
+////                                this, std::cref(xxy), std::cref(state)).detach();
+//                }
+//            }
+
+            //TODO: fix this
+//            std::thread(&RaftConsensus::dobackprop, this, std::cref(state)).detach();
+            auto i = configuration->knownServers.find(3);
+            std::shared_ptr<Peer> xx =  std::static_pointer_cast<Peer>(i->second);
+            std::thread(&RaftConsensus::getWeights,
+                        this, std::cref(xx), std::ref(state)).detach();
+
+            //TODO : make it work
+//            i = configuration->knownServers.find(2);
+//            std::shared_ptr<Peer> xyz =  std::static_pointer_cast<Peer>(i->second);
+//            std::thread(&RaftConsensus::getWeights,
+//                        this, std::cref(xyz), std::cref(state)).detach();
+
             Protocol::Raft::State avgs;
             while(true)
             {
                 {
                     std::unique_lock<std::mutex> locker(mutexNN);
-                    if(statesNN.size() == configuration->knownServers.size() + 1)
+                    if(statesNN.size() == configuration->knownServers.size())
                     {
                         avgs = avg();
                         break;//we're done
                     } else {
                         cvNN.wait(locker, [&](){
-                            return statesNN.size() > configuration->knownServers.size()/2;
+                            print("loopingA");
+                            return statesNN.size()>0;
+//                            return statesNN.size() > configuration->knownServers.size()/2;
                         });
                         avgs = avg();
                         break;
                     }
+                    print("looping");
                 }
             }
             return avgs;

@@ -1118,6 +1118,7 @@ class RaftConsensus {
     Protocol::Raft::State avg();
 
     Protocol::Raft::State backprop(const Protocol::Raft::State& state);
+    void dobackprop(const Protocol::Raft::State& state);
 
     /**
      * Submit an operation to the replicated log.
