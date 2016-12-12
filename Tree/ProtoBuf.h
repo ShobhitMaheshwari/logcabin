@@ -14,6 +14,7 @@
  */
 
 #include "build/Protocol/Client.pb.h"
+#include "build/Protocol/Raft.pb.h"
 #include "Tree/Tree.h"
 
 #ifndef LOGCABIN_TREE_PROTOBUF_H
@@ -47,6 +48,8 @@ void
 readWriteTreeRPC(Tree& tree,
                  const Protocol::Client::ReadWriteTree::Request& request,
                  Protocol::Client::ReadWriteTree::Response& response);
+
+        bool getState(const Tree& tree, LogCabin::Protocol::Raft::State& st);
 
 } // namespace LogCabin::Tree::ProtoBuf
 } // namespace LogCabin::Tree

@@ -13,6 +13,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#include <build/Protocol/Raft.pb.h>
 #include "Core/Debug.h"
 #include "Core/ProtoBuf.h"
 #include "Tree/ProtoBuf.h"
@@ -87,6 +88,18 @@ readOnlyTreeRPC(const Tree& tree,
         Result result = tree.read(key, contents);
         //TODO: change contents after running ANN
         return contents;
+    }
+
+    bool getState(const Tree& tree, LogCabin::Protocol::Raft::State& st)
+    {
+        std::string contents;
+        Result result = tree.read("wt", contents);
+        if(result.status != Status::OK)
+            return false;
+
+//        using PRS = LogCabin::Protocol::Raft::State;
+        st.ParseFromString(contents);
+        return true;
     }
 
 //    std::string

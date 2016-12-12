@@ -83,7 +83,7 @@ class StateMachine {
                 Query::Response& response) const;
 
     std::string query2(const std::string& key) const;
-//    std::string query(std::string key) const;
+        bool getState(LogCabin::Protocol::Raft::State& st) const;
 
     /**
      * Add information about the state machine state to the given structure.

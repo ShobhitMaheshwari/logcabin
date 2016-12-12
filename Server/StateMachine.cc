@@ -156,10 +156,10 @@ StateMachine::query(const Query::Request& request,
 
         }
 
-//        std::string StateMachine::query(std::string key) const
-//        {
-//            return Tree::ProtoBuf::readOnlyTreeRPC(tree, key);
-//        }
+        bool StateMachine::getState(LogCabin::Protocol::Raft::State& st) const
+        {
+            return Tree::ProtoBuf::getState(tree, st);
+        }
 
 void
 StateMachine::updateServerStats(Protocol::ServerStats& serverStats) const
