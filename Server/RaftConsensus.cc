@@ -2115,13 +2115,14 @@ RaftConsensus::replicate(const Core::Buffer& operation)
         print("in the loop");
         //initialize
         auto state = initialize({2,3,1});
+        state = requestLatestState(); state.set_iteration(state.iteration()+1);
         for (unsigned int i = 0; i < 1; i++)
         {
             res = savereplicate(request1, state, tox, logEntry);
             //now ask all servers to compute backprop and take avg of first majority of them
             print("updated state: " + std::to_string(state.iteration()));
-            state = avgState(state);
-            print("avged state");
+//            state = avgState(state);
+            print("avged state" + std::to_string(state.iteration()));
         }
     } else {
         {
