@@ -2167,13 +2167,59 @@ RaftConsensus::replicate(const Core::Buffer& operation)
 //            std::thread(&RaftConsensus::dobackprop, this, std::cref(state)).detach();
 //            auto i = configuration->knownServers.find(3);
 //            std::shared_ptr<Peer> xx =  std::static_pointer_cast<Peer>(i->second);
-
+//
 //            std::shared_ptr<Peer> xx(new Peer(3, *this));
-            std::shared_ptr<Peer> xx = std::static_pointer_cast<Peer>(sers[1]);
-            assert(xx->serverId == 2);
+//            for(size_t i = 0; i < sers.size(); i++)
+//            {
+//                {
+//                    if (sers[i]->serverId != serverId)
+//                    {
+//                        std::shared_ptr<Peer> xx = std::static_pointer_cast<Peer>(sers[i]);
+//                        std::thread(&RaftConsensus::getWeights,
+//                                    this, std::cref(xx), std::ref(state)).detach();
+//                    }
+//                }
+//            }
 
-            std::thread(&RaftConsensus::getWeights,
-                        this, std::cref(xx), std::ref(state)).detach();
+            assert(sers[0]->serverId == 1 && sers[1]->serverId == 2 && sers[2]->serverId == 3);
+            if(serverId == 1)
+            {
+                std::shared_ptr<Peer> xx = std::static_pointer_cast<Peer>(sers[1]);
+                std::thread(&RaftConsensus::getWeights,
+                            this, std::cref(xx), std::ref(state)).detach();
+
+//                std::shared_ptr<Peer> xxy = std::static_pointer_cast<Peer>(sers[2]);
+//                std::thread(&RaftConsensus::getWeights,
+//                            this, std::cref(xxy), std::ref(state)).detach();
+            }
+//            else if(serverId == 2){
+//                std::shared_ptr<Peer> xx = std::static_pointer_cast<Peer>(sers[0]);
+//                std::thread(&RaftConsensus::getWeights,
+//                            this, std::cref(xx), std::ref(state)).detach();
+//
+//                std::shared_ptr<Peer> xxy = std::static_pointer_cast<Peer>(sers[2]);
+//                std::thread(&RaftConsensus::getWeights,
+//                            this, std::cref(xxy), std::ref(state)).detach();
+//            } else {
+//                std::shared_ptr<Peer> xx = std::static_pointer_cast<Peer>(sers[0]);
+//                std::thread(&RaftConsensus::getWeights,
+//                            this, std::cref(xx), std::ref(state)).detach();
+//
+//                std::shared_ptr<Peer> xxy = std::static_pointer_cast<Peer>(sers[1]);
+//                std::thread(&RaftConsensus::getWeights,
+//                            this, std::cref(xxy), std::ref(state)).detach();
+//            }
+
+
+
+//            std::shared_ptr<Peer> xx = std::static_pointer_cast<Peer>(sers[1]);
+//            std::thread(&RaftConsensus::getWeights,
+//                        this, std::cref(xx), std::ref(state)).detach();
+//
+//            std::shared_ptr<Peer> xxy = std::static_pointer_cast<Peer>(sers[2]);
+//            std::thread(&RaftConsensus::getWeights,
+//                        this, std::cref(xxy), std::ref(state)).detach();
+
 
             //TODO : make it work
 //            i = configuration->knownServers.find(2);
