@@ -1855,10 +1855,8 @@ RaftConsensus::handleRequestVote(
         void RaftConsensus::getWeights(const std::shared_ptr<Peer>& peer, const Protocol::Raft::State& state)
         {
 //            std::this_thread::sleep_for(std::chrono::milliseconds(5000));
-            Protocol::Raft::State statecpy;
-            statecpy.ParseFromString(state.SerializeAsString());
             Protocol::Raft::RequestWeight::Request request;
-            request.set_allocated_x(&statecpy);
+            request.mutable_x()->CopyFrom(state);
 
             // Execute RPC
             Protocol::Raft::RequestWeight::Response response;

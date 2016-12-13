@@ -115,67 +115,11 @@ RaftService::requestWeight(RPC::ServerRPC rpc)
     GOOGLE_PROTOBUF_VERIFY_VERSION;
     std::cout << "start backprop in follower" << std::endl;
     PRELUDE(RequestWeight);
-//    Protocol::Raft::State st = request.x();
     Protocol::Raft::State newst = globals.raft->backprop(request.x());
     std::cout << "about to end backprop in follower" << std::endl;
-    response.set_allocated_y(&newst);
+    response.mutable_y()->CopyFrom(newst);
     std::cout << "before returning in follower" << std::endl;
     rpc.reply(response);
-//    Protocol::Client::StateMachineQuery::Request request;
-//    Protocol::Client::StateMachineQuery::Response response;
-//    if (!rpc.getRequest(request))
-//        return;
-//    using Result = RaftConsensus::ClientResult ;
-//    std::pair<Result, uint64_t> result = globals.raft->getLastCommitIndex();
-//    if (result.first == Result::RETRY || result.first == Result::NOT_LEADER) {
-//        Protocol::Client::Error error;
-//        error.set_error_code(Protocol::Client::Error::NOT_LEADER);
-//        std::string leaderHint = globals.raft->getLeaderHint();
-//        if (!leaderHint.empty())
-//            error.set_leader_hint(leaderHint);
-//        rpc.returnError(error);
-//        return;
-//    }
-//    assert(result.first == Result::SUCCESS);
-//    uint64_t logIndex = result.second;
-//    globals.stateMachine->wait(logIndex);
-//    if (!globals.stateMachine->query(request, response))
-//        rpc.rejectInvalidRequest();
-//    rpc.reply(response);
-
-//    PRELUDE(RequestWeight);
-//    //VERBOSE("RequestVote:\n%s",
-//    //        Core::ProtoBuf::dumpString(request).c_str());
-//    globals.raft->handleRequestWeight(request, response);
-//    rpc.reply(response);
-//}
-//
-//        void
-//        RaftService::requestWeight(RPC::ServerRPC rpc)
-//        {
-//    Protocol::Client::StateMachineQuery::Request request;
-//    Protocol::Client::StateMachineQuery::Response response;
-//    if (!rpc.getRequest(request))
-//        return;
-//            std::pair<Result, uint64_t> result = globals.raft->getLastCommitIndex();
-//            if (result.first == Result::RETRY || result.first == Result::NOT_LEADER) {
-//                Protocol::Client::Error error;
-//                error.set_error_code(Protocol::Client::Error::NOT_LEADER);
-//                std::string leaderHint = globals.raft->getLeaderHint();
-//                if (!leaderHint.empty())
-//                    error.set_leader_hint(leaderHint);
-//                rpc.returnError(error);
-//                return;
-//            }
-//            assert(result.first == Result::SUCCESS);
-//            uint64_t logIndex = result.second;
-//    if (globals.stateMachine)
-//    {
-//        globals.stateMachine->wait(request.prev_log_index());
-//        response.set_value(globals.stateMachine->query2(request.key()));
-//
-//    }
-//    rpc.reply(response);
 }
 
 
