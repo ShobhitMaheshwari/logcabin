@@ -14,6 +14,7 @@
  */
 
 #include <assert.h>
+#include <build/Protocol/Client.pb.h>
 
 #include "Core/StringUtil.h"
 #include "Core/ThreadId.h"
@@ -68,6 +69,8 @@ ThreadDispatchService::handleRPC(ServerRPC serverRPC)
 {
     std::lock_guard<std::mutex> lockGuard(mutex);
     assert(!exit);
+    if(serverRPC.getOpCode()== 2 && serverRPC.getService()==1)
+        std::cout << "bbbbbbbbbbbbbbbbbbbbbb" << std::endl;
     rpcQueue.push(std::move(serverRPC));
     if (numFreeWorkers == 0 && threads.size() < maxThreads)
         threads.emplace_back(&ThreadDispatchService::workerMain, this);
@@ -101,6 +104,8 @@ ThreadDispatchService::workerMain()
             rpcQueue.pop();
         }
         // execute RPC handler
+        if(rpc.getOpCode()== 2 && rpc.getService()==1)
+            std::cout << "aaaaaaaaaaaaaaaaaaaaaaaaa" << std::endl;
         threadSafeService->handleRPC(std::move(rpc));
     }
 }

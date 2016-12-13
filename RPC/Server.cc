@@ -50,7 +50,11 @@ Server::RPCHandler::handleRPC(OpaqueServerRPC opaqueRPC)
             service = it->second;
     }
     if (service)
+    {
+//        if(rpc.getOpCode()== 2 && rpc.getService()==1)
+//            std::cout << "cccccccccccccccccc" << std::endl;
         service->handleRPC(std::move(rpc));
+    }
     else
         rpc.rejectInvalidService();
 }
