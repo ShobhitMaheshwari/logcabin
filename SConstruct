@@ -63,6 +63,8 @@ opts.AddVariables(
 env = Environment(options = opts,
                   tools = ['default', 'protoc', 'packaging'],
                   ENV = os.environ)
+
+env["VERBOSE"] = 1
 Help(opts.GenerateHelpText(env))
 
 # Needed for Clang Static Analyzer's scan-build tool

@@ -1868,18 +1868,32 @@ RaftConsensus::handleRequestVote(
 
 //            print("making rpc callA", peer->serverId);
 //            print("making rpc callB" + std::to_string(peer->serverId) + " ");
+
             {
-                std::unique_lock<std::mutex> locker(mutexNN);
+                std::unique_lock<Mutex> l(mutex);
                 status = peer->callRPC(
                         Protocol::Raft::OpCode::REQUEST_WEIGHT,
                         request, response,
-                        locker);
-                print("rpc call done: " + std::to_string(response.y().iteration()), peer->serverId);
-//                Protocol::Raft::State newState = response.y();
-                //TODO either increment here or there
-//                newState.set_iteration(state.iteration() + 1);
+                        l);
+            }
+            print("rpc call done: " + std::to_string(response.y().iteration()), peer->serverId);
+            {
+                std::unique_lock<std::mutex> l(mutexNN);
                 statesNN.push_back(response.y());
             }
+
+//            {
+//                std::unique_lock<std::mutex> locker(mutexNN);
+//                status = peer->callRPC(
+//                        Protocol::Raft::OpCode::REQUEST_WEIGHT,
+//                        request, response,
+//                        locker);
+//                print("rpc call done: " + std::to_string(response.y().iteration()), peer->serverId);
+////                Protocol::Raft::State newState = response.y();
+//                //TODO either increment here or there
+////                newState.set_iteration(state.iteration() + 1);
+//                statesNN.push_back(response.y());
+//            }
             switch (status) {
                 case Peer::CallStatus::OK:
 //                    print("rpc call ok", peer->serverId);
@@ -2181,16 +2195,19 @@ RaftConsensus::replicate(const Core::Buffer& operation)
 //                }
 //            }
 
-            assert(sers[0]->serverId == 1 && sers[1]->serverId == 2 && sers[2]->serverId == 3);
-            if(serverId == 1)
             {
-                std::shared_ptr<Peer> xx = std::static_pointer_cast<Peer>(sers[1]);
-                std::thread(&RaftConsensus::getWeights,
-                            this, std::cref(xx), std::ref(state)).detach();
+                std::unique_lock<Mutex> lockGuard(mutex); //protect sers
+                assert(sers[0]->serverId == 1 && sers[1]->serverId == 2 && sers[2]->serverId == 3);
+                if (serverId == 1)
+                {
+                    std::shared_ptr<Peer> xx = std::static_pointer_cast<Peer>(sers[1]);
+                    std::thread(&RaftConsensus::getWeights,
+                                this, std::cref(xx), std::ref(state)).detach();
 
-//                std::shared_ptr<Peer> xxy = std::static_pointer_cast<Peer>(sers[2]);
-//                std::thread(&RaftConsensus::getWeights,
-//                            this, std::cref(xxy), std::ref(state)).detach();
+                    std::shared_ptr<Peer> xxy = std::static_pointer_cast<Peer>(sers[2]);
+                    std::thread(&RaftConsensus::getWeights,
+                                this, std::cref(xxy), std::ref(state)).detach();
+                }
             }
 //            else if(serverId == 2){
 //                std::shared_ptr<Peer> xx = std::static_pointer_cast<Peer>(sers[0]);
