@@ -93,7 +93,7 @@ readOnlyTreeRPC(const Tree& tree,
     bool getState(const Tree& tree, LogCabin::Protocol::Raft::State& st)
     {
         std::string contents;
-        Result result = tree.read("wt", contents);
+        Result result = tree.read("/wt", contents);
         if(result.status != Status::OK)
             return false;
 
