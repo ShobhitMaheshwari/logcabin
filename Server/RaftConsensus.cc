@@ -2195,20 +2195,21 @@ RaftConsensus::replicate(const Core::Buffer& operation)
 //                }
 //            }
 
-            {
-                std::unique_lock<Mutex> lockGuard(mutex); //protect sers
-                assert(sers[0]->serverId == 1 && sers[1]->serverId == 2 && sers[2]->serverId == 3);
-                if (serverId == 1)
-                {
-                    std::shared_ptr<Peer> xx = std::static_pointer_cast<Peer>(sers[1]);
-                    std::thread(&RaftConsensus::getWeights,
-                                this, std::cref(xx), std::ref(state)).detach();
-
-                    std::shared_ptr<Peer> xxy = std::static_pointer_cast<Peer>(sers[2]);
-                    std::thread(&RaftConsensus::getWeights,
-                                this, std::cref(xxy), std::ref(state)).detach();
-                }
-            }
+//            {
+//                std::unique_lock<Mutex> lockGuard(mutex); //protect sers
+//                assert(sers[0]->serverId == 1 && sers[1]->serverId == 2 && sers[2]->serverId == 3);
+//                if (serverId == 1)
+//                {
+//                    statesOutboundQueue.push_back(state);
+//                    std::shared_ptr<Peer> xx = std::static_pointer_cast<Peer>(sers[1]);
+//                    std::thread(&RaftConsensus::getWeights,
+//                                this, std::cref(xx), std::ref(state)).detach();
+//
+//                    std::shared_ptr<Peer> xxy = std::static_pointer_cast<Peer>(sers[2]);
+//                    std::thread(&RaftConsensus::getWeights,
+//                                this, std::cref(xxy), std::ref(state)).detach();
+//                }
+//            }
 //            else if(serverId == 2){
 //                std::shared_ptr<Peer> xx = std::static_pointer_cast<Peer>(sers[0]);
 //                std::thread(&RaftConsensus::getWeights,

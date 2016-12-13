@@ -1763,7 +1763,6 @@ class RaftConsensus {
     std::vector<Protocol::Raft::State> statesNN;
 
 
-
     friend class RaftConsensusInternal::LocalServer;
     friend class RaftConsensusInternal::Peer;
     friend class RaftConsensusInternal::Invariants;
