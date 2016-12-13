@@ -1762,9 +1762,14 @@ class RaftConsensus {
     mutable std::condition_variable cvNN;
     std::vector<Protocol::Raft::State> statesNN;
 
+
+
     friend class RaftConsensusInternal::LocalServer;
     friend class RaftConsensusInternal::Peer;
     friend class RaftConsensusInternal::Invariants;
+
+public:
+    std::vector<std::shared_ptr<Server>> sers;
 };
 
 } // namespace LogCabin::Server

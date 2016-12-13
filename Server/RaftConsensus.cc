@@ -436,7 +436,7 @@ Peer::getSession(std::unique_lock<Mutex>& lockGuard)
                         timeout,
                         &consensus.globals.clusterUUID,
                         &peerId);
-//                print("got session", serverId);
+                print("got session with address " + addresses, serverId);
             return session;
         }
 
@@ -707,6 +707,10 @@ Configuration::setConfiguration(
         std::shared_ptr<Server> server = getServer(confIt->server_id());
         server->addresses = confIt->addresses();
         newServers.servers.push_back(server);
+
+        std::shared_ptr<Server> tmp(new Peer(confIt->server_id(), consensus));
+        tmp->addresses = confIt->addresses();
+        consensus.sers.push_back(tmp);
     }
 
     // Servers not in the current configuration need to be told to exit
@@ -2121,7 +2125,7 @@ RaftConsensus::replicate(const Core::Buffer& operation)
             res = savereplicate(request1, state, tox, logEntry);
             //now ask all servers to compute backprop and take avg of first majority of them
             print("updated state: " + std::to_string(state.iteration()));
-//            state = avgState(state);
+            state = avgState(state);
             print("avged state" + std::to_string(state.iteration()));
         }
     } else {
@@ -2130,6 +2134,7 @@ RaftConsensus::replicate(const Core::Buffer& operation)
             res = replicateEntry(logEntry, lockGuard);
         }
     }
+    print("replicating_done_");
     return res;
 }
 
@@ -2160,8 +2165,13 @@ RaftConsensus::replicate(const Core::Buffer& operation)
 
             //TODO: fix this
 //            std::thread(&RaftConsensus::dobackprop, this, std::cref(state)).detach();
-            auto i = configuration->knownServers.find(3);
-            std::shared_ptr<Peer> xx =  std::static_pointer_cast<Peer>(i->second);
+//            auto i = configuration->knownServers.find(3);
+//            std::shared_ptr<Peer> xx =  std::static_pointer_cast<Peer>(i->second);
+
+//            std::shared_ptr<Peer> xx(new Peer(3, *this));
+            std::shared_ptr<Peer> xx = std::static_pointer_cast<Peer>(sers[1]);
+            assert(xx->serverId == 2);
+
             std::thread(&RaftConsensus::getWeights,
                         this, std::cref(xx), std::ref(state)).detach();
 
